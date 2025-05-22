@@ -1,5 +1,9 @@
 # TextToWavFileCLI version 1.0
-# Author : Costas Skordis 
+# Author : Costas Skordis
+# Thanks goes to :
+#   Marcel van Tongeren in helping me decipher the block structure using his EMMA 02 emulator
+#   Alan Kilian
+#   Herb Johnson  ( RetroTechnology.com)
 # May 2025
 
 """
@@ -39,6 +43,15 @@ CENTER    = 128        # Center point of generated waves
 LEADER    = 14         # Default seconds for leader
 PARITY    = 0          # Parity 0 = Odd, 1 = Even
 STARTBIT  = 0          # Start Bit
+
+# Return list of relevant text files from a directory
+def GetFiles(directory,extensions):
+    matched = []
+    for ext in extensions:
+        wild = os.path.join(directory, f'*{ext}')
+        matched.extend(glob.glob(wild))
+    return matched
+
 
 # Create a single square wave cycle of a given frequency
 def make_square_wave(freq,framerate):
@@ -162,7 +175,7 @@ if __name__ == '__main__':
         print("Usage : %s" % sys.argv[0],file=sys.stderr)
         raise SystemExit(1)
 
-    import click,os,re,taglib,wave
+    import click,os,glob,re,taglib,wave
     from colorama import Fore, Back, Style, init
     from pathlib import Path
        
@@ -190,15 +203,24 @@ if __name__ == '__main__':
     PARITY    = int(click.prompt(f'{Fore.YELLOW}Parity (0 Odd) or (1 Even)',default=str(PARITY),type=click.IntRange(0, 1),hide_input=False,show_default=False,prompt_suffix=' <'+str(PARITY)+'> :'))
     
     AlphaDir = click.confirm(f'{Fore.MAGENTA}\nDo you want to save files in alphabetized directories ?',default='Y')
+    Extension = ['.txt','.text']
+    Files_Found = GetFiles(SourceDir,Extension)
+    if Files_Found:
+        print(f'{Fore.GREEN}\nFiles to be converted :')
+        for fileStr in Files_Found:
+            print(os.path.basename(fileStr))
+    else:
+        click.pause(f'{Fore.RED}{Style.BRIGHT}\nNo Files Found. Press any key to exit')
+        sys.exit()
         
-    if click.confirm(f'{Fore.RED}\nProceed ?',default='Y'):
-    
-        for path in Path(SourceDir).glob('*.txt'):
-            SourceFile=os.path.join(SourceDir, path)
-            FileName=os.path.splitext(path.name)[0]
-            AlphaName=FileName[0].upper()
+        
             
+    if click.confirm(f'{Fore.RED}{Back.BLACK}\nProceed ?',default='Y'):
+        for SourceFile in Files_Found:    
+            FileName=os.path.splitext(os.path.basename(SourceFile))[0]
+            AlphaName=FileName[0].upper()
             WavDir = os.path.join(TargetDir, 'wav')
+        
             if not os.path.exists(WavDir):
                 os.makedirs(WavDir)
             
@@ -207,8 +229,7 @@ if __name__ == '__main__':
                 if not os.path.exists(WavDir):
                         os.makedirs(WavDir)    
             
-            TargetFile=os.path.join(WavDir, FileName+'.wav')
-            
+            TargetFile=os.path.join(WavDir, FileName +'.wav')         
             Binary_Data=Create_BinData(SourceFile)
             FName=Path(TargetFile).resolve().stem
             
@@ -216,4 +237,5 @@ if __name__ == '__main__':
             Write_Wav(TargetFile,Binary_Data)
             Write_Tag(TargetFile,FName)
     else:
-        print(f'{Fore.RED}\nABORTED')
+        click.pause(f'{Fore.RED}{Style.BRIGHT}\nABORTED. Press the any key to exit')
+        sys.exit()
